@@ -24,8 +24,6 @@ Or just download it and place it where you want otherwise.
 See the [responsive table helper gif demo](https://lingtalfi.com/img/universe/JResponsiveTableHelper/responsive-table-helper.gif)
 
 
-Github inline gif test: ![responsive table helper gif demo test](https://lingtalfi.com/img/universe/JResponsiveTableHelper/responsive-table-helper.gif)
-
 
 Note: in the gif demo, I went slowly so that we can see all my moves, but the js code is actually fast and lightweight, 
 it's all smooth don't worry.
