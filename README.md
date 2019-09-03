@@ -21,7 +21,8 @@ Or just download it and place it where you want otherwise.
 
 
 
-![responsive table helper gif](https://lingtalfi.com/img/universe/JResponsiveTableHelper/responsive-table-helper.gif)
+See the [responsive table helper gif demo](https://lingtalfi.com/img/universe/JResponsiveTableHelper/responsive-table-helper.gif)
+![responsive table helper gif demo test](https://lingtalfi.com/img/universe/JResponsiveTableHelper/responsive-table-helper.gif)
 
 
 Note: in the gif demo, I went slowly so that we can see all my moves, but the js code is actually fast and lightweight, 
