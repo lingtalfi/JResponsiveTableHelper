@@ -143,7 +143,49 @@ How to
 ```
 
 
-For more, read the source code, it's less than 500 lines.
+For more, read the source code, it's only about 500 lines.
+
+
+
+
+How to deal with ajax requests
+==============
+If your table is refreshed via ajax by another tool (let's call it ajaxTool), you might need more configuration work.
+That's because the "responsive table helper" always starts by adding a "plus toggle column" at the beginning
+of the table (and hides/shows it depending on the size of the table).
+ 
+Because of this extra column, the ajaxTool might be very confused, injecting the rows into a table
+that has one more column than expected: this would lead to a gui mess with an inconsistent table.
+
+There is a quick fix to that. Just tap into the ajaxTool logic, just before the ajax request is sent,
+and just after, like this (pseudo js code):
+
+
+  ```js
+
+var rth = new ResponsiveTableHelper({
+    jTable: $("#main-table"),
+    // ...your config here...
+});
+
+var ajaxTool = new MyAjaxTool({
+    // ...the ajax tool config here...
+    on_request_before: function () {
+        rth.removePlusColumn();
+    },
+    on_request_after: function () {
+        rth.listen();
+    },
+});
+
+ajaxTool.listen(); 
+```
+
+
+As you can see, we first start by removing the "plus" column before sending the request.
+Then we call the rth.listen method every time after a request is sent.
+
+
 
 
 
@@ -151,6 +193,11 @@ For more, read the source code, it's less than 500 lines.
 History Log
 =============
 
+- 1.1.0 -- 2019-09-04
+
+    - added ajax handling
+    - added breakpoints support 
+    
 - 1.0.0 -- 2019-09-03
 
     - initial commit

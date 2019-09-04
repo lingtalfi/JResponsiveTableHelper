@@ -94,13 +94,40 @@ if ('undefined' === typeof ResponsiveTableHelper) {
         var $ = jQuery;
 
 
+        function sortNumber(a, b) {
+            return a - b;
+        }
+
+
         window.ResponsiveTableHelper = function (options) {
             this.options = $.extend({}, window.ResponsiveTableHelper._defaults, options);
             this.jTable = this.options.jTable;
+
+
+            /**
+             * Unfortunately, I found that I needed the clone to get the best out of this tool.
+             * Without it, the breakpoints strategy works less efficiently (i.e. you still have to scroll
+             * some for certain columns).
+             * The clone strategy is: when a breakpoint is crossed, show the clone very quickly
+             * to peak the right columns dimensions (for new calculations), then hide it again.
+             *
+             * Fortunately, I tested in firefox and chrome, and I couldn't notice the appearance
+             * of the clone at all (man those browsers are fast). I don't know about explorer.
+             *
+             *
+             */
+            this.jTableClone = this.jTable.clone();
+            this.jTableClone.hide();
+
+
+            this.jTable.after(this.jTableClone);
             this.jTableContainer = this.options.jTableContainer;
             if (null === this.jTableContainer) {
                 this.jTableContainer = this.jTable.parent();
             }
+            this.firstListenCall = true;
+            this.breakpointLowBoundary = false; // false stands for not used
+            this.breakpointHighBoundary = false;
         };
         window.ResponsiveTableHelper.prototype = {
             hideColumns: function (hideColumnIndexes) {
@@ -161,12 +188,15 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                         jCells.last().after(jClone);
                     }
 
+                    var jTheCell = jClone;
 
                     if ('string' === typeof content) {
                         jClone.html(content);
 
                     } else if ('function' === typeof content) {
-                        jClone.replaceWith(content(jClone, $(this)));
+                        var jCloneReplacement = $(content(jClone, $(this)));
+                        jTheCell = jCloneReplacement;
+                        jClone.replaceWith(jCloneReplacement);
                     } else if ($.isArray(content)) {
                         var newContent;
                         if (true === jClone.is('th')) {
@@ -177,6 +207,9 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                         jClone.html(newContent);
                     }
 
+
+                    jTheCell.addClass('rth-plus-column');
+
                 });
             },
 
@@ -186,11 +219,13 @@ if ('undefined' === typeof ResponsiveTableHelper) {
              */
             getColumnMinWidths: function () {
                 var colWidths = {};
-                var jTr = this.jTable.find('tr').first();
+                this.jTableClone.show();
+                var jTr = this.jTableClone.find('tr').first();
                 var jCells = jTr.find('> th, > td');
                 jCells.each(function (index) {
                     colWidths[index] = $(this).outerWidth();
                 });
+                this.jTableClone.hide();
                 return colWidths;
             },
             /**
@@ -203,17 +238,21 @@ if ('undefined' === typeof ResponsiveTableHelper) {
 
 
                 var $this = this;
-                this.originalAvailableWidth = this.jTableContainer.outerWidth();
-                var labels = this.options.columnLabels;
-                if ('auto' === labels) {
-                    labels = [];
-                    var jTr = this.jTable.find("tr:first");
-                    if (jTr.length) {
-                        jTr.find('> th, > td').each(function () {
-                            labels.push($(this).text().trim());
-                        });
+
+
+                if (true === this.firstListenCall) {
+
+                    var labels = this.options.columnLabels;
+                    if ('auto' === labels) {
+                        labels = [];
+                        var jTr = this.jTable.find("tr:first");
+                        if (jTr.length) {
+                            jTr.find('> th, > td').each(function () {
+                                labels.push($(this).text().trim());
+                            });
+                        }
+                        this.options.columnLabels = labels;
                     }
-                    this.options.columnLabels = labels;
                 }
 
 
@@ -225,7 +264,59 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                  */
                 this.addColumn(0, this.options.extraColumnContent);
 
+
+                if (true === this.firstListenCall) {
+                    this.refreshNumbers();
+                }
+
+
+                //----------------------------------------
+                // redrawing
+                //----------------------------------------
+                if (this.availableWidth < this.columnsTotalWidth) {
+                    this.redraw();
+                }
+
+                if (true === this.firstListenCall) {
+
+
+                    $(window).on('resize', function () {
+                        var windowNewSize = $(window).width();
+                        var sizeOffset = $this.initWindowWidth - windowNewSize;
+                        $this.availableWidth = $this.originalAvailableWidth - sizeOffset;
+
+
+                        if ($this.isBreakpointsBoundaryCrossed(windowNewSize)) {
+                            $this.refreshNumbers();
+                        }
+
+
+                        $this.redraw();
+
+                    });
+
+                    this.jTable.on('click', '.rth-toggle-button', function () {
+                        var jTr = $(this).closest('tr');
+
+                        if (false === jTr.hasClass('rth-expanded-row')) {
+                            jTr.addClass('rth-expanded-row');
+                            $this.addSubRow(jTr);
+                        } else {
+                            jTr.removeClass('rth-expanded-row');
+                            $this.removeSubRow(jTr);
+                        }
+                        return false;
+                    });
+                }
+
+                this.firstListenCall = false;
+            },
+            refreshNumbers: function () {
+                this.originalAvailableWidth = this.jTableContainer.outerWidth();
                 this.initWindowWidth = $(window).width();
+                this.initializeBreakpointsBoundaries(this.initWindowWidth);
+
+
                 this.minWidths = this.getColumnMinWidths();
 
                 var padding = this.options.padding;
@@ -238,36 +329,55 @@ if ('undefined' === typeof ResponsiveTableHelper) {
 
 
                 // the available width is dynamic, it's calculated as the window is resized.
-                this.availableWidth = $this.originalAvailableWidth;
+                this.availableWidth = this.originalAvailableWidth;
                 this.columnsTotalWidth = this.sum(this.minWidths);
+            },
+            initializeBreakpointsBoundaries: function (windowSize, force) {
+                // let's initialize boundaries now
+                if (false === this.breakpointLowBoundary || true === force) {
+                    var breakpoints = this.options.breakpoints.slice();
 
+                    if (breakpoints.length) {
 
-                //----------------------------------------
-                // redrawing
-                //----------------------------------------
-                if (this.availableWidth < this.columnsTotalWidth) {
-                    this.redraw();
-                }
-                $(window).on('resize', function () {
-                    var windowNewSize = $(this).width();
-                    var sizeOffset = $this.initWindowWidth - windowNewSize;
-                    $this.availableWidth = $this.originalAvailableWidth - sizeOffset;
-                    $this.redraw();
-                });
+                        breakpoints.sort(sortNumber);
+                        var lowLimit = 0;
+                        var highLimit = 0;
 
-                this.jTable.on('click', '.rth-toggle-button', function () {
-                    var jTr = $(this).closest('tr');
+                        for (var i in breakpoints) {
+                            var point = breakpoints[i];
 
-                    if (false === jTr.hasClass('rth-expanded-row')) {
-                        jTr.addClass('rth-expanded-row');
-                        $this.addSubRow(jTr);
-                    } else {
-                        jTr.removeClass('rth-expanded-row');
-                        $this.removeSubRow(jTr);
+                            if (windowSize > point) {
+                                lowLimit = point;
+                            } else {
+                                highLimit = point;
+                                break;
+                            }
+                        }
+                        if (lowLimit > highLimit) {
+                            highLimit = null;
+                        }
+                        this.breakpointLowBoundary = lowLimit;
+                        this.breakpointHighBoundary = highLimit;
                     }
-                    return false;
-                });
-
+                }
+            },
+            /**
+             * Returns whether a breakpoint boundary is crossed in either direction.
+             *
+             * @param windowSize
+             * @returns bool
+             */
+            isBreakpointsBoundaryCrossed: function (windowSize) {
+                if (false !== this.breakpointLowBoundary) {
+                    if (
+                        windowSize < this.breakpointLowBoundary ||
+                        (null !== this.breakpointHighBoundary && windowSize > this.breakpointHighBoundary)
+                    ) {
+                        this.initializeBreakpointsBoundaries(windowSize, true);
+                        return true;
+                    }
+                }
+                return false;
             },
             /**
              * Adds a sub row (if it doesn't exist already) below the given tr jquery object.
@@ -318,6 +428,9 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                     jNextTr.remove();
                 }
             },
+            removePlusColumn: function () {
+                this.jTable.find('.rth-plus-column').remove();
+            },
             /**
              * This method is called many times very rapidly (i.e. on every resize triggered event).
              * It basically redraws the rows of the table, according to the available width.
@@ -355,7 +468,6 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                         this.error("The column with index " + nextColumnToCollapse + " was not defined in minWidths.");
                     }
                 }
-
 
                 // no columns to hide?
                 var hasColumnsToExpand = true;
@@ -505,6 +617,23 @@ if ('undefined' === typeof ResponsiveTableHelper) {
              * The "auto" special value will automatically set the value to the width of the last column.
              */
             padding: "auto",
+            /**
+             * Note: you generally don't need to use this.
+             * Read carefully.
+             *
+             * An array of breakpoints number representing the window sizes.
+             *
+             * If your table changes size with media query (for instance if you hide/show
+             * some extra filter row when the screen is bigger than 576px, and the extra filter
+             * row causes the table to grow in width), then you can add the number 576
+             * to this array, which will tell this tool to redraw the list whenever
+             * those breakpoints are passed across, in both directions.
+             *
+             * If your table, without the use of this tool, doesn't have extra content
+             * hidden/shown based on its size, you don't need this.
+             *
+             */
+            breakpoints: [],
         };
     })();
 }
