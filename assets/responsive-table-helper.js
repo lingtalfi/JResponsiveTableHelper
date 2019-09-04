@@ -128,6 +128,8 @@ if ('undefined' === typeof ResponsiveTableHelper) {
             this.firstListenCall = true;
             this.breakpointLowBoundary = false; // false stands for not used
             this.breakpointHighBoundary = false;
+
+
         };
         window.ResponsiveTableHelper.prototype = {
             hideColumns: function (hideColumnIndexes) {
@@ -253,6 +255,29 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                         }
                         this.options.columnLabels = labels;
                     }
+
+
+                    // translate the collapsible column indexes if necessary
+                    var collapsibleColumnIndexes = this.options.collapsibleColumnIndexes;
+                    if ('admin' === collapsibleColumnIndexes) {
+                        var jFirstTr = this.jTable.find('tr:first');
+                        if (jFirstTr.length) {
+                            var nbUserCols = jFirstTr.find('> td, > th').length;
+
+                            /**
+                             *
+                             * - minus one because the plus column is added
+                             * - minus one because the collapsibleColumnIndexes is 0-based index
+                             */
+                            var max = nbUserCols - 2;
+                            collapsibleColumnIndexes = [];
+                            for (var i = max; i > 1; i--) { // we preserve two more fields here, no particular reason
+                                collapsibleColumnIndexes.push(i);
+                            }
+                        }
+                    }
+                    this.collapsibleColumnIndexes = collapsibleColumnIndexes;
+
                 }
 
 
@@ -441,7 +466,9 @@ if ('undefined' === typeof ResponsiveTableHelper) {
             redraw: function () {
 
                 var $this = this;
-                var collapsibleColumnIndexes = this.options.collapsibleColumnIndexes.slice();
+                var collapsibleColumnIndexes = this.collapsibleColumnIndexes.slice();
+
+
                 var columnsTotalWidth = parseInt(this.columnsTotalWidth);
                 var columnsToShow = Object.keys(this.minWidths).map(function (x) {
                     return parseInt(x, 10);
@@ -537,6 +564,9 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                 }
                 return sum;
             },
+            error: function (msg) {
+                throw new Error("ResponsiveTableHelper error: " + msg);
+            },
         };
 
 
@@ -568,6 +598,11 @@ if ('undefined' === typeof ResponsiveTableHelper) {
              */
             extraColumnContent: '<a href="#" class="rth-toggle-button"<i class="fas fa-plus-circle"></i></a>',
             /**
+             *
+             * array|string.
+             *
+             * If it's an array.
+             * ---------------
              * An array of the indexes (0-based) of the columns to collapse in decreasing priority order (i.e.
              * the first index in the array will be the first column to collapse).
              *
@@ -583,6 +618,22 @@ if ('undefined' === typeof ResponsiveTableHelper) {
              * developer consider putting the non-important data to the right in the first place
              * (makes more semantic sense anyway at least ltr readers), and use this array
              * by putting higher index first...
+             *
+             *
+             * It it's a string
+             * -------------
+             * One of:
+             *
+             * - admin
+             *      This case suits you if you are using an admin table, and your last column is an action column
+             *      which you don't want to collapse.
+             *      This option is basically equivalent to an array containing all your columns except the last one,
+             *      and ordered from the highest index to the lowest, so that the columns on the right collapse first
+             *      (with the exception of the last column which never collapses).
+             *
+             *
+             *
+             *
              *
              */
             collapsibleColumnIndexes: [],

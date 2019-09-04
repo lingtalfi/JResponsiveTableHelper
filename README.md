@@ -193,6 +193,10 @@ Then we call the rth.listen method every time after a request is sent.
 History Log
 =============
 
+- 1.2.0 -- 2019-09-04
+
+    - added collapsibleColumnIndexes=admin option 
+    
 - 1.1.0 -- 2019-09-04
 
     - added ajax handling
