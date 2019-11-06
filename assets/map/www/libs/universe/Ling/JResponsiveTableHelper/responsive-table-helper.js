@@ -671,8 +671,9 @@ if ('undefined' === typeof ResponsiveTableHelper) {
              * Basically the more padding you add, the less likely you are going to have a column
              * split by the right side of your window.
              * The "auto" special value will automatically set the value to the width of the last column.
+             * The default value is now 0 (I experienced problems with the auto value, not showing the max number of columns).
              */
-            padding: "auto",
+            padding: 0,
             /**
              * Note: you generally don't need to use this.
              * Read carefully.
