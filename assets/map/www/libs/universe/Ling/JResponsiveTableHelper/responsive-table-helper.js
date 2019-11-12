@@ -309,7 +309,6 @@ if ('undefined' === typeof ResponsiveTableHelper) {
 
                 if (true === this.firstListenCall) {
 
-
                     $(window).on('resize', function () {
                         var windowNewSize = $(window).width();
                         var sizeOffset = $this.initWindowWidth - windowNewSize;
@@ -325,7 +324,10 @@ if ('undefined' === typeof ResponsiveTableHelper) {
 
                     });
 
+
+
                     this.jTable.on('click', '.rth-toggle-button', function () {
+
                         var jTr = $(this).closest('tr');
 
                         if (false === jTr.hasClass('rth-expanded-row')) {
@@ -337,6 +339,9 @@ if ('undefined' === typeof ResponsiveTableHelper) {
                         }
                         return false;
                     });
+
+
+                    this.redraw();
                 }
 
                 this.firstListenCall = false;
@@ -415,13 +420,14 @@ if ('undefined' === typeof ResponsiveTableHelper) {
              * @param jTr
              */
             addSubRow: function (jTr) {
+
                 // add the row only if it doesn't exist already
                 var jNextTr = jTr.next('tr');
                 if (jNextTr.length && jNextTr.hasClass('rth-sub-row')) {
                     return;
                 }
 
-                $this = this;
+                var $this = this;
                 var s = '';
                 s += '<table>';
                 jTr.find('> td').not(":first").each(function (index) {
