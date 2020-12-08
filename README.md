@@ -196,6 +196,10 @@ Then we call the rth.listen method every time after a request is sent.
 History Log
 =============
 
+- 1.5.4 -- 2020-12-08
+
+    - Fix lpi-deps not using natsort.
+
 - 1.5.3 -- 2020-12-04
 
     - Add lpi-deps.byml file
